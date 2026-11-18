@@ -40,6 +40,7 @@ use url::Url;
 
 mod player_event_handler;
 use player_event_handler::{EventHandler, run_program_on_sink_events};
+mod stream_server;
 
 fn device_id(name: &str) -> String {
     HEXLOWER.encode(&Sha1::digest(name.as_bytes()))
@@ -222,6 +223,7 @@ struct Setup {
     emit_sink_events: bool,
     zeroconf_ip: Vec<std::net::IpAddr>,
     zeroconf_backend: Option<DnsSdServiceBuilder>,
+    stream_port: u16,
 }
 
 async fn get_setup() -> Setup {
@@ -286,6 +288,7 @@ async fn get_setup() -> Setup {
     const ZEROCONF_INTERFACE: &str = "zeroconf-interface";
     const ZEROCONF_BACKEND: &str = "zeroconf-backend";
     const LOCAL_FILE_DIR: &str = "local-file-dir";
+    const STREAM_PORT: &str = "stream-port";
 
     // Mostly arbitrary.
     const AP_PORT_SHORT: &str = "a";
@@ -340,6 +343,7 @@ async fn get_setup() -> Setup {
     const ZEROCONF_PORT_SHORT: &str = "z";
     const ZEROCONF_BACKEND_SHORT: &str = ""; // no short flag
     const LOCAL_FILE_DIR_SHORT: &str = "l";
+    const STREAM_PORT_SHORT: &str = ""; // no short flag
 
     // Options that have different descriptions
     // depending on what backends were enabled at build time.
@@ -675,6 +679,11 @@ async fn get_setup() -> Setup {
         LOCAL_FILE_DIR,
         "Directory to search for local file playback. Can be specified multiple times to add multiple search directories",
         "DIRECTORY"
+    ).optopt(
+        STREAM_PORT_SHORT,
+        STREAM_PORT,
+        "Serve each signed-in track's original audio on 127.0.0.1:PORT, at /stream?uri=…&quality=…, for another program to download. 0 picks a free port.",
+        "PORT"
     );
 
     #[cfg(feature = "passthrough-decoder")]
@@ -1325,6 +1334,18 @@ async fn get_setup() -> Setup {
         0
     };
 
+    // The stream server serves this track's audio to another program, such as
+    // a music app's download manager. 0, the default, turns it off.
+    let stream_port = opt_str(STREAM_PORT)
+        .map(|port| match port.parse::<u16>() {
+            Ok(value) => value,
+            _ => {
+                invalid_error_msg(STREAM_PORT, STREAM_PORT_SHORT, &port, "0 - 65535", "0");
+                exit(1);
+            }
+        })
+        .unwrap_or(0);
+
     // #1046: not all connections are supplied an `autoplay` user attribute to run statelessly.
     // This knob allows for a manual override.
     let autoplay = match opt_str(AUTOPLAY) {
@@ -1887,6 +1908,7 @@ async fn get_setup() -> Setup {
         emit_sink_events,
         zeroconf_ip,
         zeroconf_backend,
+        stream_port,
     }
 }
 
@@ -1930,6 +1952,17 @@ async fn main() {
     let mut _event_handler: Option<EventHandler> = None;
 
     let mut session = Session::new(setup.session_config.clone(), setup.cache.clone());
+
+    // The stream server answers another program's requests for a track's
+    // audio, through whichever session is signed in right now.
+    let stream_sessions: stream_server::Sessions =
+        std::sync::Arc::new(std::sync::Mutex::new(Some(session.clone())));
+    if setup.stream_port != 0 {
+        match stream_server::spawn(setup.stream_port, stream_sessions.clone()) {
+            Ok(port) => info!("Stream server on http://127.0.0.1:{port}/stream"),
+            Err(e) => warn!("Stream server didn't start: {e}"),
+        }
+    }
 
     let mut sys = System::new();
 
@@ -2093,6 +2126,9 @@ async fn main() {
                 if session.is_invalid() {
                     session = Session::new(setup.session_config.clone(), setup.cache.clone());
                     player.set_session(session.clone());
+                    if let Ok(mut current) = stream_sessions.lock() {
+                        *current = Some(session.clone());
+                    }
                 }
 
                 let connect_config = setup.connect_config.clone();

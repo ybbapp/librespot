@@ -1799,10 +1799,15 @@ dependencies = [
 name = "librespot"
 version = "0.8.0"
 dependencies = [
+ "bytes",
  "data-encoding",
  "env_logger",
+ "form_urlencoded",
  "futures-util",
  "getopts",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "librespot-audio",
  "librespot-connect",
  "librespot-core",
