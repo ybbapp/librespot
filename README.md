@@ -24,6 +24,38 @@ After installation, you can run librespot from the CLI using a command such as `
 ## This fork
 As the origin by [plietar](https://github.com/plietar/) is no longer actively maintained, this organisation and repository have been set up so that the project may be maintained and upgraded in the future.
 
+### `ybbapp` fork: play *and* save
+
+This fork adds `--download-dir`, which saves the **original** audio of every
+track that plays, without re-encoding it. Playback is unaffected: the track
+still plays through the chosen backend while a copy is written to disk.
+
+```shell
+# Build with the Ogg passthrough decoder, which the remux needs.
+cargo build --release --features passthrough-decoder
+
+# Play a Connect device named "MyGo Music" and save whatever it plays.
+./target/release/librespot -n "MyGo Music" --download-dir ~/Music/zotify
+```
+
+What gets written:
+
+- **Ogg Vorbis (96/160/320)** → a well-formed `.ogg` file. The audio packets
+  are copied byte-for-byte; only Spotify's custom (malformed) header packet is
+  dropped, so the file plays anywhere Ogg Vorbis does. This needs
+  `--features passthrough-decoder`.
+- **MP3 / FLAC / AAC** → the decrypted stream as-is, with the matching
+  extension.
+
+Files are named `Artist - Title.ext`, written to a `.part` file first and
+renamed once complete. A track already saved is skipped. When a
+`--cache` is configured the audio cache is reused, so a track played and then
+saved is fetched from the network only once.
+
+Unlike `--backend pipe --device FILE`, which writes decoded PCM that has to be
+re-encoded (losing quality and gaining size), this writes the original
+compressed audio, so it is a download rather than a transcode.
+
 # Documentation
 Documentation is currently a work in progress, contributions are welcome!
 

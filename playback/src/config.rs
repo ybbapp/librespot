@@ -118,6 +118,12 @@ pub struct PlayerConfig {
 
     pub local_file_directories: Vec<PathBuf>,
 
+    /// When set, every remote track that is loaded is also saved, as the
+    /// original (decrypted, not re-encoded) audio, into this directory. Ogg
+    /// Vorbis is written as a well-formed Ogg file; other formats are written
+    /// as the decrypted stream. Playback is unaffected.
+    pub download_dir: Option<PathBuf>,
+
     // pass function pointers so they can be lazily instantiated *after* spawning a thread
     // (thereby circumventing Send bounds that they might not satisfy)
     pub ditherer: Option<DithererBuilder>,
@@ -143,6 +149,7 @@ impl Default for PlayerConfig {
             ditherer: Some(mk_ditherer::<TriangularDitherer>),
             position_update_interval: None,
             local_file_directories: Vec::new(),
+            download_dir: None,
         }
     }
 }

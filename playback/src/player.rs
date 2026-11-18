@@ -48,7 +48,7 @@ pub const PCM_AT_0DBFS: f64 = 1.0;
 
 // Spotify inserts a custom Ogg packet at the start with custom metadata values, that you would
 // otherwise expect in Vorbis comments. This packet isn't well-formed and players may balk at it.
-const SPOTIFY_OGG_HEADER_END: u64 = 0xa7;
+pub(crate) const SPOTIFY_OGG_HEADER_END: u64 = 0xa7;
 
 const LOAD_HANDLES_POISON_MSG: &str = "load handles mutex should not be poisoned";
 
@@ -1090,6 +1090,10 @@ impl PlayerTrackLoader {
 
         let bytes_per_second = self.stream_data_rate(format)?;
 
+        // With a download directory set, save this track's original audio while
+        // it plays. It runs on its own thread, so playback is unaffected.
+        let mut save_started = false;
+
         // This is only a loop to be able to reload the file if an error occurred
         // while opening a cached file.
         loop {
@@ -1117,6 +1121,22 @@ impl PlayerTrackLoader {
                     None
                 }
             };
+
+            if !save_started {
+                if let Some(dir) = &self.config.download_dir {
+                    save_started = true;
+                    crate::download::spawn_save(
+                        self.session.clone(),
+                        tokio::runtime::Handle::current(),
+                        file_id,
+                        key,
+                        format,
+                        bytes_per_second,
+                        audio_item.clone(),
+                        dir.clone(),
+                    );
+                }
+            }
 
             let mut decrypted_file = AudioDecrypt::new(key, encrypted_file);
 

@@ -238,6 +238,7 @@ async fn get_setup() -> Setup {
     const AUTOPLAY: &str = "autoplay";
     const BACKEND: &str = "backend";
     const BITRATE: &str = "bitrate";
+    const DOWNLOAD_DIR: &str = "download-dir";
     const CACHE: &str = "cache";
     const CACHE_SIZE_LIMIT: &str = "cache-size-limit";
     const DEVICE: &str = "device";
@@ -316,6 +317,7 @@ async fn get_setup() -> Setup {
     const NAME_SHORT: &str = "n";
     const DISABLE_DISCOVERY_SHORT: &str = "O";
     const ONEVENT_SHORT: &str = "o";
+    const DOWNLOAD_DIR_SHORT: &str = "";
     #[cfg(feature = "passthrough-decoder")]
     const PASSTHROUGH_SHORT: &str = "P";
     const PASSWORD_SHORT: &str = "p";
@@ -538,6 +540,12 @@ async fn get_setup() -> Setup {
         ONEVENT,
         "Run PROGRAM when a playback event occurs.",
         "PROGRAM",
+    )
+    .optopt(
+        DOWNLOAD_DIR_SHORT,
+        DOWNLOAD_DIR,
+        "Save every played track's original audio (not re-encoded) into this directory. Ogg Vorbis is written as a playable Ogg file.",
+        "PATH",
     )
     .optopt(
         ALSA_MIXER_CONTROL_SHORT,
@@ -1847,6 +1855,8 @@ async fn get_setup() -> Setup {
         #[cfg(not(feature = "passthrough-decoder"))]
         let passthrough = false;
 
+        let download_dir = opt_str(DOWNLOAD_DIR).map(PathBuf::from);
+
         PlayerConfig {
             bitrate,
             gapless,
@@ -1862,6 +1872,7 @@ async fn get_setup() -> Setup {
             ditherer,
             position_update_interval: None,
             local_file_directories,
+            download_dir,
         }
     };
 
