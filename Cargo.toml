@@ -162,13 +162,18 @@ librespot-playback.workspace = true
 librespot-protocol.workspace = true
 
 data-encoding = "2.5"
+bytes = "1"
 env_logger = { version = "0.11.2", default-features = false, features = [
     "color",
     "humantime",
     "auto-color",
 ] }
+form_urlencoded = "1.2"
 futures-util = { version = "0.3", default-features = false }
 getopts = "0.2"
+http-body-util = "0.1"
+hyper = { version = "1.6", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["server", "server-graceful", "tokio"] }
 log = "0.4"
 sha1 = "0.10"
 sysinfo = { version = "0.36", default-features = false, features = ["system"] }

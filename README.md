@@ -24,6 +24,34 @@ After installation, you can run librespot from the CLI using a command such as `
 ## This fork
 As the origin by [plietar](https://github.com/plietar/) is no longer actively maintained, this organisation and repository have been set up so that the project may be maintained and upgraded in the future.
 
+### `ybbapp` fork: serve a track's audio for another program to save
+
+Adds `--stream-port PORT`: with it set, librespot answers, on the loopback
+address alone, a request for any signed-in track's **original** audio, while it
+goes on playing as usual.
+
+```shell
+cargo build --release --features passthrough-decoder
+./target/release/librespot -n "MyGo Music" --stream-port 43111
+
+# then, while it runs:
+curl 'http://127.0.0.1:43111/stream?uri=spotify:track:<id>&quality=high' > song.ogg
+```
+
+- `GET /stream?uri=spotify:track:<id>` (or `:episode:`) answers the audio.
+- `quality` is `standard`, `high` (the default) or `lossless`, and picks the
+  best Ogg Vorbis Spotify has at that level.
+- Ogg Vorbis is remuxed into a well-formed Ogg file — the audio packets are
+  copied byte for byte, only Spotify's custom header packet is dropped — so the
+  body is a playable file and not a re-encode. This needs
+  `--features passthrough-decoder`.
+- It shares playback's `Session` and audio cache, so a track already played is
+  served from the cache rather than fetched again.
+
+It exists for apps that play through librespot but save with their own download
+manager — MyGo Music, with the Spotify plugin, is one. Where playback alone is
+wanted, leave the option off and nothing listens.
+
 # Documentation
 Documentation is currently a work in progress, contributions are welcome!
 
